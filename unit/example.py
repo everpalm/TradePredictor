@@ -1,76 +1,103 @@
-import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
+import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-# 1. 定義資料集，採用滑動視窗：以第 i 天作為輸入，第 i+1 天作為目標
+# 定義資料集 (範例與之前類似)
 class StockDataset(Dataset):
     def __init__(self, csv_file):
-        # 使用 Big5 編碼讀取 CSV（根據你檔案實際編碼調整）
         self.data = pd.read_csv(csv_file, encoding='big5')
-        # 清理欄位名稱，移除前後空格
         self.data.columns = [col.strip() for col in self.data.columns]
-        # 依日期排序（若有 date 欄位）
         if 'date' in self.data.columns:
             self.data = self.data.sort_values(by='date').reset_index(drop=True)
         print("CSV 欄位名稱：", self.data.columns.tolist())
         
-        # 使用 scikit-learn 對 "amount" 欄位進行正規化
-        # 先移除逗號並轉換成 float
+        # 對 "amount" 與 "deal" 分別處理：
+        # amount：移除逗號後正規化
         self.data['amount'] = self.data['amount'].apply(lambda x: float(str(x).replace(',', '')))
-        scaler = MinMaxScaler(feature_range=(0, 100))
-        # scaler.fit_transform 需要傳入 2D 陣列，這裡用雙中括號選取 "amount" 欄位
-        self.data[['amount']] = scaler.fit_transform(self.data[['amount']])
+        scaler_amount = MinMaxScaler(feature_range=(0, 100))
+        self.data[['amount']] = scaler_amount.fit_transform(self.data[['amount']])
         
+        # 對其他欄位若有需要也可以處理（此處只處理 amount）
+        # 其他欄位保留原始數值，這裡假設其他欄位不含逗號或已清理
+
     def __len__(self):
         return len(self.data) - 1
 
     def __getitem__(self, idx):
-        # 輸入欄位：移除 money，保留 amount（此處的 amount 已經正規化）
-        input_cols = ['amount', 'open', 'max', 'min', 'close', 'delta', 'deal']
-        # 將每個欄位值轉換成 float（其他欄位若是字串也處理逗號問題）
-        features = self.data.iloc[idx][input_cols].apply(
+        # 將輸入分為兩部分：
+        # amount (單獨處理) 與其他特徵：open, max, min, close, delta, deal
+        input_cols_amount = ['amount']
+        input_cols_other = ['open', 'max', 'min', 'close', 'delta', 'deal']
+        
+        # amount 欄位已經正規化
+        amount_val = self.data.iloc[idx][input_cols_amount].values.astype('float32')
+        # 其他欄位：如果有逗號就先移除（依據實際情況）
+        other_vals = self.data.iloc[idx][input_cols_other].apply(
             lambda x: float(str(x).replace(',', '')) if isinstance(x, str) else x
         ).values.astype('float32')
         
-        # 目標欄位：預測下一日的 amount, max, min, close
-        target_cols = ['amount', 'max', 'min', 'close']
+        # 合併後形成完整輸入，例如也可以讓模型各分支獨立輸入（這裡示範分支模型）
+        # 我們這裡返回兩個部分，模型可以分別處理
+        features = {
+            'amount': torch.tensor(amount_val),
+            'other': torch.tensor(other_vals)
+        }
+        # 目標：預測下一日的 max, min, close
+        target_cols = ['max', 'min', 'close']
         target = self.data.iloc[idx + 1][target_cols].apply(
             lambda x: float(str(x).replace(',', '')) if isinstance(x, str) else x
         ).values.astype('float32')
+        
+        return features, torch.tensor(target)
 
-        return torch.tensor(features), torch.tensor(target)
 
-
-# 2. 定義神經網路模型
-class StockPredictor(nn.Module):
-    def __init__(self, input_size=7, hidden_size=32, output_size=4):
-        super(StockPredictor, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(hidden_size, output_size)
-
-    def forward(self, x):
-        out = self.fc1(x)
-        out = self.relu(out)
-        out = self.fc2(out)
-        return out
+# 定義多分支神經網路模型
+class MultiBranchStockPredictor(nn.Module):
+    def __init__(self, other_input_size=6, hidden_size=32, output_size=3):
+        super(MultiBranchStockPredictor, self).__init__()
+        # 分支1：處理 amount (單一特徵)
+        self.amount_branch = nn.Sequential(
+            nn.Linear(1, 8),
+            nn.ReLU()
+        )
+        # 分支2：處理其他特徵 (6 個特徵)
+        self.other_branch = nn.Sequential(
+            nn.Linear(other_input_size, 8),
+            nn.ReLU()
+        )
+        # 整合後的全連接層
+        self.combined_fc = nn.Sequential(
+            nn.Linear(16, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, output_size)
+        )
+        
+    def forward(self, features):
+        # features 是一個字典：{'amount': ..., 'other': ...}
+        amount_input = features['amount']  # shape: (batch, 1)
+        other_input = features['other']    # shape: (batch, 6)
+        
+        out_amount = self.amount_branch(amount_input)
+        out_other = self.other_branch(other_input)
+        
+        # 連接兩個分支的輸出
+        combined = torch.cat((out_amount, out_other), dim=1)
+        output = self.combined_fc(combined)
+        return output
 
 
 if __name__ == '__main__':
-    # 設定 CSV 檔案路徑
     csv_file = r'D:\TradePredictor\data\STOCK_DAY_2002_202503.csv'
     dataset = StockDataset(csv_file)
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-    # 建立模型、定義損失函數與優化器
-    model = StockPredictor(input_size=7, hidden_size=32, output_size=4)
+    model = MultiBranchStockPredictor(other_input_size=6, hidden_size=32, output_size=3)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    # 訓練 (示範用 epoch 數較少，實際可依需要調整)
     num_epochs = 1000
     model.train()
     for epoch in range(num_epochs):
@@ -84,19 +111,25 @@ if __name__ == '__main__':
             epoch_loss += loss.item()
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss/len(dataloader):.4f}")
 
-    # 以最新一天的資料預測明日目標值
+    # 預測：以最新一天的資料進行預測
     last_row = dataset.data.iloc[-1]
-    input_cols = ['amount', 'open', 'max', 'min', 'close', 'delta', 'deal']
-    last_features = last_row[input_cols].apply(
+    input_cols_amount = ['amount']
+    input_cols_other = ['open', 'max', 'min', 'close', 'delta', 'deal']
+    amount_val = last_row[input_cols_amount].values.astype('float32')
+    other_vals = last_row[input_cols_other].apply(
         lambda x: float(str(x).replace(',', '')) if isinstance(x, str) else x
     ).values.astype('float32')
-    last_features = torch.tensor(last_features).unsqueeze(0)  # 增加 batch 維度
+
+    features = {
+        'amount': torch.tensor(amount_val).unsqueeze(0),  # 增加 batch 維度
+        'other': torch.tensor(other_vals).unsqueeze(0)
+    }
 
     model.eval()
     with torch.no_grad():
-        prediction = model(last_features)
+        prediction = model(features)
 
     pred_np = prediction.numpy().flatten()
-    target_cols = ['預測明日amount', '預測明日max', '預測明日min', '預測明日close']
+    target_cols = ['預測明日max', '預測明日min', '預測明日close']
     for col, val in zip(target_cols, pred_np):
         print(f"{col}: {val:.2f}")
