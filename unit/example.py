@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
-
+from sklearn.preprocessing import MinMaxScaler
 
 # 1. 定義資料集，採用滑動視窗：以第 i 天作為輸入，第 i+1 天作為目標
 class StockDataset(Dataset):
@@ -16,21 +16,29 @@ class StockDataset(Dataset):
         if 'date' in self.data.columns:
             self.data = self.data.sort_values(by='date').reset_index(drop=True)
         print("CSV 欄位名稱：", self.data.columns.tolist())
-
+        
+        # 使用 scikit-learn 對 "amount" 欄位進行正規化
+        # 先移除逗號並轉換成 float
+        self.data['amount'] = self.data['amount'].apply(lambda x: float(str(x).replace(',', '')))
+        scaler = MinMaxScaler(feature_range=(0, 100))
+        # scaler.fit_transform 需要傳入 2D 陣列，這裡用雙中括號選取 "amount" 欄位
+        self.data[['amount']] = scaler.fit_transform(self.data[['amount']])
+        
     def __len__(self):
         return len(self.data) - 1
 
     def __getitem__(self, idx):
-        # 更新為 CSV 中的欄位名稱
-        input_cols = ['amount', 'money', 'open', 'max', 'min', 'close',
-                      'delta', 'deal']
-        # 將每個欄位值轉換成 float，先移除逗號
+        # 輸入欄位：移除 money，保留 amount（此處的 amount 已經正規化）
+        input_cols = ['amount', 'open', 'max', 'min', 'close', 'delta', 'deal']
+        # 將每個欄位值轉換成 float（其他欄位若是字串也處理逗號問題）
         features = self.data.iloc[idx][input_cols].apply(
-            lambda x: float(str(x).replace(',', ''))
+            lambda x: float(str(x).replace(',', '')) if isinstance(x, str) else x
         ).values.astype('float32')
+        
+        # 目標欄位：預測下一日的 amount, max, min, close
         target_cols = ['amount', 'max', 'min', 'close']
         target = self.data.iloc[idx + 1][target_cols].apply(
-            lambda x: float(str(x).replace(',', ''))
+            lambda x: float(str(x).replace(',', '')) if isinstance(x, str) else x
         ).values.astype('float32')
 
         return torch.tensor(features), torch.tensor(target)
@@ -38,7 +46,7 @@ class StockDataset(Dataset):
 
 # 2. 定義神經網路模型
 class StockPredictor(nn.Module):
-    def __init__(self, input_size=8, hidden_size=32, output_size=4):
+    def __init__(self, input_size=7, hidden_size=32, output_size=4):
         super(StockPredictor, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
         self.relu = nn.ReLU()
@@ -52,18 +60,18 @@ class StockPredictor(nn.Module):
 
 
 if __name__ == '__main__':
-    # 讀取資料集
+    # 設定 CSV 檔案路徑
     csv_file = r'D:\TradePredictor\data\STOCK_DAY_2002_202503.csv'
     dataset = StockDataset(csv_file)
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
     # 建立模型、定義損失函數與優化器
-    model = StockPredictor(input_size=8, hidden_size=32, output_size=4)
+    model = StockPredictor(input_size=7, hidden_size=32, output_size=4)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # 訓練 (示範用 epoch 數較少，實際可依需要調整)
-    num_epochs = 10
+    num_epochs = 1000
     model.train()
     for epoch in range(num_epochs):
         epoch_loss = 0.0
@@ -74,20 +82,13 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
-        print(
-            f"Epoch {epoch+1}/{num_epochs},"
-            "Loss: {epoch_loss/len(dataloader):.4f}"
-        )
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss/len(dataloader):.4f}")
 
     # 以最新一天的資料預測明日目標值
-    # 取 CSV 檔中最後一筆資料（注意：這筆資料尚無對應明日資料）
-    # 取 CSV 檔中最後一筆資料（注意：這筆資料尚無對應明日資料）
     last_row = dataset.data.iloc[-1]
-    input_cols = ['amount', 'money', 'open', 'max', 'min', 'close', 'delta',
-                  'deal']
-    # 先移除逗號再轉換成 float
+    input_cols = ['amount', 'open', 'max', 'min', 'close', 'delta', 'deal']
     last_features = last_row[input_cols].apply(
-        lambda x: float(str(x).replace(',', ''))
+        lambda x: float(str(x).replace(',', '')) if isinstance(x, str) else x
     ).values.astype('float32')
     last_features = torch.tensor(last_features).unsqueeze(0)  # 增加 batch 維度
 
@@ -96,6 +97,6 @@ if __name__ == '__main__':
         prediction = model(last_features)
 
     pred_np = prediction.numpy().flatten()
-    target_cols = ['預測明日成交量', '預測明日max', '預測明日min', '預測明日close']
+    target_cols = ['預測明日amount', '預測明日max', '預測明日min', '預測明日close']
     for col, val in zip(target_cols, pred_np):
         print(f"{col}: {val:.2f}")
