@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
+import torch.optim.lr_scheduler as lr_scheduler
 
 # 1. 定義資料集
 class StockDataset(Dataset):
@@ -92,7 +94,7 @@ class MultiBranchStockPredictor(nn.Module):
 
 
 if __name__ == '__main__':
-    csv_file = r'D:\TradePredictor\data\STOCK_DAY_2002_202503.csv'
+    csv_file = r'D:\TradePredictor\data\STOCK_DAY_2002.csv'
     dataset = StockDataset(csv_file)
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
@@ -100,8 +102,11 @@ if __name__ == '__main__':
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
+    # 使用學習率調度器，每 5 個 epoch 將學習率衰減至原來的 0.5 倍
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+
     num_epochs = 2000
-    threshold = 0.75
+    threshold = 0.72
     model.train()
     for epoch in range(num_epochs):
         epoch_loss = 0.0
@@ -115,6 +120,9 @@ if __name__ == '__main__':
 
         avg_loss = epoch_loss / len(dataloader)
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss/len(dataloader):.4f}")
+
+        # scheduler.step()  # 更新學習率
+
         if avg_loss < threshold:
             print(f"Loss has approached {threshold}, stopping training early.")
             break
