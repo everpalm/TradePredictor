@@ -12,8 +12,10 @@ class StockDataset(Dataset):
     def __init__(self, csv_file):
         # 使用 Big5 編碼讀取 CSV（根據實際編碼調整）
         self.data = pd.read_csv(csv_file, encoding='big5')
+
         # 清理欄位名稱，移除前後空格
         self.data.columns = [col.strip() for col in self.data.columns]
+        
         # 依日期排序（若有 date 欄位）
         if 'date' in self.data.columns:
             self.data = self.data.sort_values(by='date').reset_index(drop=True)
@@ -49,7 +51,7 @@ class StockDataset(Dataset):
             'amount': torch.tensor(amount_val),
             'other': torch.tensor(other_vals)
         }
-        # 目標：預測下一日的 [amount, max, min, close]
+        # 目標：預測下一日的 [amount, 'open', max, min, close]
         target_cols = ['amount', 'max', 'min', 'close']
         target = self.data.iloc[idx + 1][target_cols].apply(
             lambda x: float(str(x).replace(',', '')) if isinstance(x, str) else x
@@ -94,7 +96,7 @@ class MultiBranchStockPredictor(nn.Module):
 
 
 if __name__ == '__main__':
-    csv_file = r'D:\TradePredictor\data\STOCK_DAY_2002.csv'
+    csv_file = r'D:\TradePredictor\data\STOCK_DAY_2308.csv'
     dataset = StockDataset(csv_file)
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
@@ -102,10 +104,10 @@ if __name__ == '__main__':
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    # 使用學習率調度器，每 5 個 epoch 將學習率衰減至原來的 0.5 倍
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+    # 使用學習率調度器，每 10 個 epoch 將學習率衰減至原來的 0.95 倍
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.95)
 
-    num_epochs = 2000
+    num_epochs = 1000
     threshold = 0.72
     model.train()
     for epoch in range(num_epochs):
@@ -121,7 +123,7 @@ if __name__ == '__main__':
         avg_loss = epoch_loss / len(dataloader)
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss/len(dataloader):.4f}")
 
-        # scheduler.step()  # 更新學習率
+        scheduler.step()  # 更新學習率
 
         if avg_loss < threshold:
             print(f"Loss has approached {threshold}, stopping training early.")
