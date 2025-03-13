@@ -2,15 +2,13 @@
 '''Copyright (c) 2025 Jaron Cheng'''
 
 import logging
+import pandas as pd
 import torch
 import torch.nn as nn
-# import torch.optim as optim
+
 from unit.log_handler import get_logger
 from torch.utils.data import Dataset
-# from torch.utils.data import DataLoader, Dataset
-import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
-# import torch.optim.lr_scheduler as lr_scheduler
 
 logger = get_logger(__name__, logging.DEBUG)
 

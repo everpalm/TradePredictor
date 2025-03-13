@@ -8,7 +8,7 @@ from unit.log_handler import get_logger
 logger = get_logger(__name__, logging.DEBUG)
 
 
-class Integrated(BasePredictor):
+class Peripheral(BasePredictor):
     '''docstring'''
     def predict_trade(self, num_epochs: int, threshold: float):
         self.model.train()
@@ -62,9 +62,9 @@ class Integrated(BasePredictor):
             logger.info(f"{col}: {val:.2f}")
 
 
-class IntegratedFactory(BasePredictorFactory):
+class PeripheralFactory(BasePredictorFactory):
     def create_predictor(self, **kwargs) -> BasePredictor:
-        if self.code == '2002':
-            return Integrated(**kwargs)
+        if self.code == '2308':
+            return Peripheral(**kwargs)
         else:
             raise ValueError(f"Unsupported Stock Code: {self.code}")

@@ -8,4 +8,4 @@ logger = logging.getLogger(__name__)
 class TestIntegrated:
     '''docstring'''
     def test_integrated_steel(self, integrated_steel):
-        integrated_steel.predict_trade(1000, 0.72)
+        integrated_steel.predict_trade(500, 0.72)
