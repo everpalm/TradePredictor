@@ -4,11 +4,16 @@
 import logging
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+# import torch.optim as optim
+from unit.log_handler import get_logger
+from torch.utils.data import Dataset
+# from torch.utils.data import DataLoader, Dataset
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
-import torch.optim.lr_scheduler as lr_scheduler
+# import torch.optim.lr_scheduler as lr_scheduler
+
+logger = get_logger(__name__, logging.DEBUG)
+
 
 # 1. 定義資料集
 class StockDataset(Dataset):
@@ -22,7 +27,7 @@ class StockDataset(Dataset):
         # 依日期排序（若有 date 欄位）
         if 'date' in self.data.columns:
             self.data = self.data.sort_values(by='date').reset_index(drop=True)
-        print("CSV 欄位名稱：", self.data.columns.tolist())
+        logger.debug("CSV 欄位名稱：", self.data.columns.tolist())
         
         # 將 "amount" 與 "money" 欄位轉換成 float（移除逗號）
         self.data['amount'] = self.data['amount'].apply(lambda x: float(str(x).replace(',', '')))
@@ -102,64 +107,3 @@ class MultiBranchStockPredictor(nn.Module):
         combined = torch.cat((out_amount, out_other), dim=1)
         output = self.combined_fc(combined)
         return output
-
-
-if __name__ == '__main__':
-    csv_file = r'D:\TradePredictor\data\STOCK_DAY_2317.csv'
-    dataset = StockDataset(csv_file)
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
-
-    model = MultiBranchStockPredictor(other_input_size=6, hidden_size=64, output_size=6)
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    # 使用學習率調度器，每 10 個 epoch 將學習率衰減至原來的 0.95 倍
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.95)
-
-    num_epochs = 1000
-    threshold = 0.72
-    model.train()
-    for epoch in range(num_epochs):
-        epoch_loss = 0.0
-        for features, targets in dataloader:
-            optimizer.zero_grad()
-            outputs = model(features)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
-        avg_loss = epoch_loss / len(dataloader)
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
-        scheduler.step()
-        if avg_loss < threshold:
-            print(f"Loss has approached {threshold}, stopping training early.")
-            break
-
-    # 以最新一天的資料預測明日目標值
-    last_row = dataset.data.iloc[-1]
-    input_cols_amount = ['amount']
-    input_cols_other = ['open', 'avg', 'max', 'min', 'close', 'deal']
-    amount_val = last_row[input_cols_amount].values.astype('float32')
-    other_vals = last_row[input_cols_other].apply(
-        lambda x: float(str(x).replace(',', '')) if isinstance(x, str) else x
-    ).values.astype('float32')
-
-    features = {
-        'amount': torch.tensor(amount_val).unsqueeze(0),  # 增加 batch 維度
-        'other': torch.tensor(other_vals).unsqueeze(0)
-    }
-
-    model.eval()
-    with torch.no_grad():
-        prediction = model(features)
-
-    pred_np = prediction.numpy().flatten()
-    target_cols = ['預測明日amount', '預測明日open', '預測明日avg', '預測明日max', '預測明日min', '預測明日close']
-    
-    # 將預測的 normalized amount（pred_np[0]）轉換回原始尺度
-    normalized_amount = pred_np[0]
-    original_amount = dataset.scaler_amount.inverse_transform([[normalized_amount]])[0][0]
-    print(f"預測明日amount(原始尺度）：{int(original_amount/1000)}")
-    
-    # 輸出其餘預測值
-    for col, val in zip(target_cols[1:], pred_np[1:]):
-        print(f"{col}: {val:.2f}")
