@@ -27,7 +27,7 @@ class StockDataset(Dataset):
         # 依日期排序（若有 date 欄位）
         if 'date' in self.data.columns:
             self.data = self.data.sort_values(by='date').reset_index(drop=True)
-        logger.debug("CSV 欄位名稱：", self.data.columns.tolist())
+        logger.debug("CSV 欄位名稱： %s", self.data.columns.tolist())
         
         # 將 "amount" 與 "money" 欄位轉換成 float（移除逗號）
         self.data['amount'] = self.data['amount'].apply(lambda x: float(str(x).replace(',', '')))
