@@ -4,15 +4,16 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pandas = "*"
-torch = "*"
-torchvision = "*"
-scikit-learn = "*"
-pytest = "*"
-pytest-cov = "*"
-pytest-testmon = "*"
-pytest-repeat = "*"
-pytest-json-report = "*"
+pandas = "==2.2.3"
+torch = "==2.6.0"
+torchvision = "==0.21.0"
+scikit-learn = "==1.6.1"
+pytest = "==6.0.0"
+pytest-cov = "==6.0.0"
+pytest-testmon = "==2.1.3"
+pytest-repeat = "==0.9.3"
+pytest-json-report = "==1.5.0"
+pytest-order = "==1.3.0"
 
 [dev-packages]
 
