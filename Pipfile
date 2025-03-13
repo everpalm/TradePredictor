@@ -8,6 +8,11 @@ pandas = "*"
 torch = "*"
 torchvision = "*"
 scikit-learn = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-testmon = "*"
+pytest-repeat = "*"
+pytest-json-report = "*"
 
 [dev-packages]
 
