@@ -4,7 +4,6 @@ pipeline {
         label 'AMD64_DESKTOP'
     }
     parameters {
-        // Add parameters for test suite selection with default value 'all'
         choice(
             choices: [
                 'steel',
@@ -17,8 +16,8 @@ pipeline {
     }
     environment {
         MY_PRIVATE_TOKEN = credentials('gitlab-private-token')
-        // WORK_PATH = 'D:\\workspace\\TradePredictor'
         WORK_PATH = 'C:\\Users\\STE\\workspace\\TradePredictor'
+        PYTHONIOENCODING = 'utf-8'
     }
     stages {
         stage('Setup') {
@@ -26,7 +25,6 @@ pipeline {
                 dir("${env.WORK_PATH}") {
                     script {
                         // Install all dependencies, including pytest
-                        // bat "pipenv install --dev"
                         bat "pipenv sync"
                     }
                 }
@@ -36,7 +34,6 @@ pipeline {
             steps {
                 dir("${env.WORK_PATH}") {
                     script {
-                        // Determine which tests to run based on the MY_SUITE parameter
                         if (params.MY_SUITE == 'steel') {
                             bat 'pipenv run pytest tests\\test_steel'
                         } else if (params.MY_SUITE == 'electronics') {
@@ -51,9 +48,7 @@ pipeline {
     }
     post {
         always {
-            // Send email notification and clear pytest cache
             emailext body: 'Test results are available at: $BUILD_URL', subject: 'Test Results', to: 'everpalm@yahoo.com.tw'
-            // bat "pipenv run python -m pytest --cache-clear"
         }
         success {
             echo 'Test completed successfully.'
