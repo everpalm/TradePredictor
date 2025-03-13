@@ -1,4 +1,4 @@
-# Content of tests/test_steel/conftest.py
+# Content of tests/test_electronics/conftest.py
 '''Copyright (c) 2025 Jaron Cheng'''
 import pytest
 from steel.product import IntegratedFactory
@@ -13,7 +13,7 @@ from torch.optim.lr_scheduler import StepLR
 @pytest.fixture(scope="package")
 def integrated_steel():
     '''docstring'''
-    csv_file = r'D:\TradePredictor\data\STOCK_DAY_2002.csv'
+    csv_file = r'D:\TradePredictor\data\STOCK_DAY_2308.csv'
 
     print('\n\033[32m============== Setup Integrated Steel ==========\033[0m')
     csv_model = MultiBranchStockPredictor(

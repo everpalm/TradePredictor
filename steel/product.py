@@ -8,13 +8,13 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from unit.log_handler import get_logger
-from unit.data_modeling import MultiBranchStockPredictor
-from unit.data_modeling import StockDataset
+from generic.data_modeling import MultiBranchStockPredictor
+from generic.data_modeling import StockDataset
 
 logger = get_logger(__name__, logging.DEBUG)
 
 
-class BaseSteel(ABC):
+class BasePredictor(ABC):
     '''docstring'''
     def __init__(self,
             model: MultiBranchStockPredictor,
@@ -37,7 +37,7 @@ class BaseSteel(ABC):
         pass
 
 
-class Integrated(BaseSteel):
+class Integrated(BasePredictor):
     '''docstring'''
     def predict_trade(self, num_epochs: int, threshold: float):
         self.model.train()
@@ -103,12 +103,12 @@ class BaseSteelFactory(ABC):
         self.code = code
 
     @abstractmethod
-    def create_predictor(self) -> BaseSteel:
+    def create_predictor(self) -> BasePredictor:
         pass
 
 
 class IntegratedFactory(BaseSteelFactory):
-    def create_predictor(self, **kwargs) -> BaseSteel:
+    def create_predictor(self, **kwargs) -> BasePredictor:
         if self.code == '2002':
             return Integrated(**kwargs)
         else:
