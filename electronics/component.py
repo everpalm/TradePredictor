@@ -12,6 +12,26 @@ logger = get_logger(__name__, logging.INFO)
 
 class Peripheral(BasePredictor):
     '''docstring'''
+    def adjust_to_tick_size(self, price):
+        """根據台股檔位規則調整價格到合法值"""
+        if price < 10:
+            tick_size = 0.01
+        elif price < 50:
+            tick_size = 0.05
+        elif price < 100:
+            tick_size = 0.1
+        elif price < 500:
+            tick_size = 0.5
+        elif price < 1000:
+            tick_size = 1
+        else:
+            tick_size = 5
+        
+        # 調整到最接近的檔位值（四捨五入到 tick_size 的倍數）
+        adjusted_price = round(price / tick_size) * tick_size
+        # 確保小數位數符合規則（避免浮點數精度問題）
+        return round(adjusted_price, 2 if tick_size < 1 else 0)
+
     def predict_trade(self, num_epochs: int, threshold: float):
         self.model.train()
 
@@ -26,7 +46,7 @@ class Peripheral(BasePredictor):
                 epoch_loss += loss.item()
             avg_loss = epoch_loss / len(self.dataloader)
 
-            logger.debug(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+            logger.info(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
             self.scheduler.step()
 
             if avg_loss < threshold:
@@ -59,6 +79,13 @@ class Peripheral(BasePredictor):
         original_amount = self.dataset.scaler_amount.inverse_transform([[normalized_amount]])[0][0]
         logger.debug("預測明日amount(原始尺度: %d)", int(original_amount/1000))
         pred_np[0] = int(original_amount/1000)
+
+        # 對 open, max, min, close 應用檔位限制，avg 不調整
+        price_indices = [1, 3, 4, 5]  # open, max, min, close 的索引
+
+        # 對股價相關預測值應用檔位限制
+        for i in price_indices: # 從 index 1 開始，跳過 amount
+            pred_np[i] = self.adjust_to_tick_size(pred_np[i])
 
         # 輸出其餘預測值
         for col, val in zip(target_cols[1:], pred_np[1:]):
