@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class TestService:
     '''docstring'''
     def test_electro_manufacturing(self, service_electronics):
-        predict: list = service_electronics.predict_trade(1000, 10)
+        predict: list = service_electronics.predict_trade(1000, 9.5)
         amount: int = predict[0]
         open: float = predict[1]
         avg: float = predict[2]

@@ -46,5 +46,5 @@ def integrated_steel(steel_model, steel_dataset, steel_optimizer):
         dataloader=DataLoader(steel_dataset, batch_size=32, shuffle=True),
         criterion=MSELoss(),
         optimizer=steel_optimizer,
-        scheduler=StepLR(steel_optimizer, step_size=10, gamma=0.95)
+        scheduler=StepLR(steel_optimizer, step_size=10, gamma=0.975)
     )

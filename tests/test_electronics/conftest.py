@@ -67,8 +67,8 @@ def service_electronics(electro_model, service_dataset, electro_optimizer):
     return stock.create_predictor(
         model=electro_model,
         dataset=service_dataset,
-        dataloader=DataLoader(service_dataset, batch_size=64, shuffle=True),
+        dataloader=DataLoader(service_dataset, batch_size=32, shuffle=True),
         criterion=MSELoss(),
         optimizer=electro_optimizer,
-        scheduler=StepLR(electro_optimizer, step_size=10, gamma=0.95)
+        scheduler=StepLR(electro_optimizer, step_size=10, gamma=0.99)
     )
