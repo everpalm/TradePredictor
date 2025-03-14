@@ -15,7 +15,7 @@ def steel_model():
     '''docstring'''
     print('\n\033[32m============== Setup Steel Model ===============\033[0m')
     csv_model = MultiBranchStockPredictor(
-        other_input_size=6, hidden_size=64, output_size=6
+        other_input_size=6, hidden_size=32, output_size=6
     )
     return csv_model 
 
@@ -39,13 +39,11 @@ def steel_optimizer(steel_model):
 def integrated_steel(steel_model, steel_dataset, steel_optimizer):
     '''docstring'''
     print('\n\033[32m============== Setup Integrated Steel ==========\033[0m')
-    # csv_optimizer = Adam(steel_model.parameters(), lr=0.001)
-
     stock = IntegratedFactory("2002")
     return stock.create_predictor(
         model=steel_model,
         dataset=steel_dataset,
-        dataloader=DataLoader(steel_dataset, batch_size=64, shuffle=True),
+        dataloader=DataLoader(steel_dataset, batch_size=32, shuffle=True),
         criterion=MSELoss(),
         optimizer=steel_optimizer,
         scheduler=StepLR(steel_optimizer, step_size=10, gamma=0.95)

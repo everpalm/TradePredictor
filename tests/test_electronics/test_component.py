@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class TestPeripheral:
     '''docstring'''
     def test_electro_component(self, component_electronics):
-        predict: list = component_electronics.predict_trade(1000, 0.75)
+        predict: list = component_electronics.predict_trade(1000, 49)
         amount: int = predict[0]
         open: float = predict[1]
         avg: float = predict[2]
