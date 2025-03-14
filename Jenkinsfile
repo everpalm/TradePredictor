@@ -6,6 +6,7 @@ pipeline {
     parameters {
         choice(
             choices: [
+                'all',
                 'steel',
                 'electronics',
                 'finantial'
@@ -34,9 +35,11 @@ pipeline {
             steps {
                 dir("${env.WORK_PATH}") {
                     script {
-                        if (params.MY_SUITE == 'steel') {
+                        if (params.MY_SUITE == 'all') {
+                            bat 'pipenv run pytest tests\\'
+                        } else if (params.MY_SUITE == 'steel') { 
                             bat 'pipenv run pytest tests\\test_steel'
-                        } else if (params.MY_SUITE == 'electronics') {
+                        }else if (params.MY_SUITE == 'electronics') {
                             bat 'pipenv run pytest tests\\test_electronics'
                         } else if (params.MY_SUITE == 'financial') {
                             bat 'pipenv run pytest tests\\test_financial'
