@@ -45,7 +45,7 @@ def integrated_steel(steel_model, steel_dataset, steel_optimizer):
     return stock.create_predictor(
         model=steel_model,
         dataset=steel_dataset,
-        dataloader=DataLoader(steel_dataset, batch_size=32, shuffle=True),
+        dataloader=DataLoader(steel_dataset, batch_size=64, shuffle=True),
         criterion=MSELoss(),
         optimizer=steel_optimizer,
         scheduler=StepLR(steel_optimizer, step_size=10, gamma=0.95)
