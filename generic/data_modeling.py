@@ -10,7 +10,7 @@ from unit.log_handler import get_logger
 from torch.utils.data import Dataset
 from sklearn.preprocessing import MinMaxScaler
 
-logger = get_logger(__name__, logging.DEBUG)
+logger = get_logger(__name__, logging.INFO)
 
 
 # 1. 定義資料集
