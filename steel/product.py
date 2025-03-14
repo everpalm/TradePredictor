@@ -5,7 +5,7 @@ from generic.predictor import BasePredictor
 from generic.predictor import BasePredictorFactory
 from unit.log_handler import get_logger
 
-logger = get_logger(__name__, logging.DEBUG)
+logger = get_logger(__name__, logging.INFO)
 
 
 class Integrated(BasePredictor):
@@ -24,11 +24,11 @@ class Integrated(BasePredictor):
                 epoch_loss += loss.item()
             avg_loss = epoch_loss / len(self.dataloader)
 
-            logger.info(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+            logger.debug(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
             self.scheduler.step()
 
             if avg_loss < threshold:
-                logger.info("Loss has approached %d, stopping training early.", threshold)
+                logger.debug("Loss has approached %d, stopping training early.", threshold)
                 break
 
         # 以最新一天的資料預測明日目標值
@@ -55,12 +55,14 @@ class Integrated(BasePredictor):
         # 將預測的 normalized amount（pred_np[0]）轉換回原始尺度
         normalized_amount = pred_np[0]
         original_amount = self.dataset.scaler_amount.inverse_transform([[normalized_amount]])[0][0]
-        logger.info("預測明日amount(原始尺度: %d)", int(original_amount/1000))
-        
+        logger.debug("預測明日amount(原始尺度: %d)", int(original_amount/1000))
+        pred_np[0] = int(original_amount/1000)
+
         # 輸出其餘預測值
         for col, val in zip(target_cols[1:], pred_np[1:]):
             logger.info(f"{col}: {val:.2f}")
 
+        return pred_np
 
 class IntegratedFactory(BasePredictorFactory):
     def create_predictor(self, **kwargs) -> BasePredictor:
