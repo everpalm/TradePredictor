@@ -15,9 +15,61 @@ from generic.data_modeling import StockDataset
 
 logger = get_logger(__name__, logging.INFO)
 
+"""Generic Predictor Module
+
+This module provides abstract base classes for constructing stock trade
+prediction strategies using PyTorch. It defines the BasePredictor class, which
+integrates a multi-branch stock prediction model with training routines,
+including early stopping, learning rate scheduling, and post-processing of
+predictions (e.g. adjusting for tick sizes and inverse-transforming normalized
+values). The module also defines an abstract factory class,
+BasePredictorFactory, for creating predictor instances.
+
+Classes:
+    BasePredictor(ABC):
+        An abstract base class for stock trade predictors. It encapsulates the
+        model, dataset, dataloader, loss criterion, optimizer, and learning
+        rate scheduler. It provides methods for training (predict_trade) and
+        post-processing predictions, such as converting normalized prices back
+        to their original scales and adjusting prices to valid tick sizes.
+
+    BasePredictorFactory(ABC):
+        An abstract factory class for creating BasePredictor instances.
+        Subclasses must implement the create_predictor method to return a
+        concrete predictor.
+
+Functions:
+    (None)
+
+Usage:
+    Subclasses of BasePredictor should implement any additional
+    strategy-specific functionality if required. The BasePredictorFactory can
+    be used to encapsulate the creation logic for a predictor instance based
+    on specific criteria (e.g. stock code).
+"""
+
 
 class BasePredictor(ABC):
-    '''docstring'''
+    """
+    Abstract base class for stock trade predictors.
+
+    This class encapsulates a stock prediction model, its associated dataset
+    and dataloader, and the training components including loss criterion,
+    optimizer, and learning rate scheduler. It provides a training loop with
+    early stopping based on a loss threshold and post-processes predictions by
+    converting normalized 'amount' back to its original scale and adjusting
+    prices to legal tick sizes according to Taiwanese market rules.
+
+    Attributes:
+        model (MultiBranchStockPredictor): The PyTorch model used for
+        prediction.
+        dataset (StockDataset): The dataset containing stock data.
+        dataloader (DataLoader): The dataloader providing batches from the
+        dataset.
+        criterion (MSELoss): The loss function used for training.
+        optimizer (Adam): The optimizer for updating model parameters.
+        scheduler (StepLR): The learning rate scheduler.
+    """
     def __init__(
             self,
             model: MultiBranchStockPredictor,
@@ -33,12 +85,24 @@ class BasePredictor(ABC):
         self.optimizer = optimizer
         self.scheduler = scheduler
 
-    # @abstractmethod
-    # def predict_trade(self, num_epochs: int, threshold: float):
-    #     pass
+    @staticmethod
+    def adjust_to_tick_size(price):
+        """
+        Adjust a given price to the nearest valid tick size based on Taiwanese
+        stock market rules.
 
-    def adjust_to_tick_size(self, price):
-        """根據台股檔位規則調整價格到合法值"""
+        The function determines the tick size based on the price range and
+        rounds the price
+        to the nearest multiple of the tick size. It also ensures the result
+        is rounded to the
+        correct number of decimal places.
+
+        Args:
+            price (float): The price to adjust.
+
+        Returns:
+            float: The price adjusted to the nearest legal tick size.
+        """
         if price < 10:
             tick_size = 0.01
         elif price < 50:
@@ -58,6 +122,31 @@ class BasePredictor(ABC):
         return round(adjusted_price, 2 if tick_size < 1 else 0)
 
     def predict_trade(self, num_epochs: int, threshold: float):
+        """
+        Train the model for a specified number of epochs (or until the loss
+        threshold is reached)
+        and then predict next-day target values using the latest available
+        data.
+
+        The training loop iterates over the dataloader, computes the loss for
+        each batch, and updates the model parameters using the optimizer. The
+        learning rate scheduler is stepped at the end of each epoch. After
+        training, the model predicts the next day's targets based on the last
+        row of the dataset. The predicted normalized 'amount' is converted
+        back to its original scale using the stored scaler, and price
+        predictions for 'open', 'max', 'min', and 'close' are adjusted to
+        legal tick sizes.
+
+        Args:
+            num_epochs (int): The maximum number of training epochs.
+            threshold (float): The loss threshold below which training stops
+            early.
+
+        Returns:
+            numpy.ndarray: A flattened array of predicted values in the order:
+            [預測明日amount, 預測明日open, 預測明日avg, 預測明日max, 預測明日min, 預測明日close]
+                           with 'amount' converted back to its original scale.
+        """
         self.model.train()
 
         for epoch in range(num_epochs):
@@ -133,14 +222,18 @@ class BasePredictor(ABC):
 
 
 class BasePredictorFactory(ABC):
-    def __init__(self, code: str):
-        """
-        Initialize the BasePlatformFactory with an API instance.
+    """
+    Abstract factory class for creating predictor instances.
 
-        Args:
-            api (BaseInterface): An interface instance providing platform
-            details.
-        """
+    This class serves as a blueprint for factories that instantiate objects
+    derived from BasePredictor. Concrete implementations must implement the
+    create_predictor method.
+
+    Attributes:
+        code (str): A code identifier (e.g., stock code) used for creating the
+        predictor.
+    """
+    def __init__(self, code: str):
         self.code = code
 
     @abstractmethod

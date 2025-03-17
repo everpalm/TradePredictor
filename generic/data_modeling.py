@@ -15,6 +15,31 @@ logger = get_logger(__name__, logging.INFO)
 
 # 1. 定義資料集
 class StockDataset(Dataset):
+    """
+    A PyTorch Dataset for stock market data processing and preparation.
+
+    This class handles loading stock data from CSV files, cleaning and
+    preprocessing the data, and providing structured access for model training.
+    It performs several
+    key preprocessing steps:
+    1. Encoding handling for Chinese characters (Big5)
+    2. Date-based sorting
+    3. Numeric conversions (removing commas from financial figures)
+    4. Feature engineering (calculating average price)
+    5. Feature normalization using MinMaxScaler
+
+    Parameters
+    ----------
+    csv_file : str
+        Path to the CSV file containing stock market data.
+
+    Attributes
+    ----------
+    data : pandas.DataFrame
+        The processed stock data.
+    scaler_amount : sklearn.preprocessing.MinMaxScaler
+        Scaler used for normalizing the 'amount' column.
+    """
     def __init__(self, csv_file):
         # 使用 Big5 編碼讀取 CSV（根據實際編碼調整）
         self.data = pd.read_csv(csv_file, encoding='big5')
@@ -85,6 +110,34 @@ class StockDataset(Dataset):
 
 # 2. 定義多分支神經網路模型
 class MultiBranchStockPredictor(nn.Module):
+    """
+    A multi-branch neural network for stock price prediction.
+
+    This model uses a specialized architecture with two separate branches:
+    1. A branch dedicated to processing trading volume (amount)
+    2. A branch for other stock metrics (open, avg, max, min, close, deal)
+
+    The outputs from both branches are concatenated and passed through
+    additional fully connected layers to produce the final predictions.
+
+    Parameters
+    ----------
+    other_input_size : int, default=6
+        The number of features in the 'other' branch (excluding 'amount').
+    hidden_size : int, default=32
+        The size of the hidden layer in the combined network.
+    output_size : int, default=6
+        The number of target variables to predict.
+
+    Attributes
+    ----------
+    amount_branch : nn.Sequential
+        Neural network branch for processing the 'amount' feature.
+    other_branch : nn.Sequential
+        Neural network branch for processing other stock metrics.
+    combined_fc : nn.Sequential
+        Fully connected layers after combining both branches.
+    """
     def __init__(self, other_input_size=6, hidden_size=32, output_size=6):
         super(MultiBranchStockPredictor, self).__init__()
         # 分支1：處理 amount (1 個特徵)
