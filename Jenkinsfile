@@ -17,7 +17,7 @@ pipeline {
     }
     environment {
         MY_PRIVATE_TOKEN = credentials('gitlab-private-token')
-        WORK_PATH = 'C:\\Users\\STE\\workspace\\TradePredictor'
+        WORK_PATH = 'D:\\workspace\\TradePredictor'
         PYTHONIOENCODING = 'utf-8'
     }
     stages {
