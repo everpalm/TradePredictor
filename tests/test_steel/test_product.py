@@ -36,7 +36,7 @@ class TestIntegrated:
             This test function does not return a value but raises an
             AssertionError if any of the assertions fail.
         """
-        predict: list = integrated_steel.predict_trade(1000, 0.9)
+        predict: list = integrated_steel.predict_trade(1000, 0.75)
         amount: int = predict[0]
         open: float = predict[1]
         avg: float = predict[2]

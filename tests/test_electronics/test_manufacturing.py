@@ -36,7 +36,7 @@ class TestService:
             This test function does not return a value but raises an
             AssertionError if any of the assertions fail.
         """
-        predict: list = service_electronics.predict_trade(1000, 9.5)
+        predict: list = service_electronics.predict_trade(1000, 8.1)
         amount: int = predict[0]
         open: float = predict[1]
         avg: float = predict[2]
